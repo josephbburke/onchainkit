@@ -258,8 +258,10 @@ export function BuyProvider({
   ]);
 
   const handleAmountChange = useCallback(
-    async (amount: string) => {
-      // Track analytics first, before any early returns
+    async (
+      amount: string,
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO Refactor this component
+    ) => {
       if (amount !== '' && amount !== '.' && Number.parseFloat(amount) !== 0) {
         handleAnalyticsInitiated(Number(amount), to?.token?.symbol || '');
       }

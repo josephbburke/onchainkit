@@ -1140,4 +1140,69 @@ describe('BuyProvider', () => {
       });
     });
   });
+
+  describe('error handling', () => {
+    it('should handle non-Error objects in error handling', async () => {
+      const mockSendAnalytics = vi.fn();
+      (useAnalytics as Mock).mockReturnValue({
+        sendAnalytics: mockSendAnalytics,
+      });
+
+      const nonErrorObject = { message: 'Custom error object' };
+      vi.mocked(getBuyQuote).mockRejectedValueOnce(nonErrorObject);
+
+      const { result } = renderHook(() => useBuyContext(), { wrapper });
+
+      await act(async () => {
+        result.current.handleAmountChange('10');
+      });
+
+      expect(mockSendAnalytics).toHaveBeenCalledWith(BuyEvent.BuyFailure, {
+        error: String(nonErrorObject),
+        metadata: { amount: '10' },
+      });
+    });
+
+    it('should handle string errors in error handling', async () => {
+      const mockSendAnalytics = vi.fn();
+      (useAnalytics as Mock).mockReturnValue({
+        sendAnalytics: mockSendAnalytics,
+      });
+
+      const stringError = 'String error message';
+      vi.mocked(getBuyQuote).mockRejectedValueOnce(stringError);
+
+      const { result } = renderHook(() => useBuyContext(), { wrapper });
+
+      await act(async () => {
+        result.current.handleAmountChange('10');
+      });
+
+      expect(mockSendAnalytics).toHaveBeenCalledWith(BuyEvent.BuyFailure, {
+        error: stringError,
+        metadata: { amount: '10' },
+      });
+    });
+
+    it('should handle Error objects in error handling', async () => {
+      const mockSendAnalytics = vi.fn();
+      (useAnalytics as Mock).mockReturnValue({
+        sendAnalytics: mockSendAnalytics,
+      });
+
+      const errorObject = new Error('Test error message');
+      vi.mocked(getBuyQuote).mockRejectedValueOnce(errorObject);
+
+      const { result } = renderHook(() => useBuyContext(), { wrapper });
+
+      await act(async () => {
+        result.current.handleAmountChange('10');
+      });
+
+      expect(mockSendAnalytics).toHaveBeenCalledWith(BuyEvent.BuyFailure, {
+        error: errorObject.message,
+        metadata: { amount: '10' },
+      });
+    });
+  });
 });
