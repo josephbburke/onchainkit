@@ -374,7 +374,7 @@ describe('useBuyContext', () => {
     expect(() => {
       render(<TestComponent />);
     }).toThrow('useBuyContext must be used within a Buy component');
-
+    // Restore console.error
     console.error = originalError;
   });
 
@@ -659,39 +659,15 @@ describe('BuyProvider', () => {
     expect(onStatusMock).toHaveBeenCalled();
   });
 
-  it('should track BuySuccess event on successful swap', async () => {
-    const mockSendAnalytics = vi.fn();
-    (useAnalytics as Mock).mockReturnValue({
-      sendAnalytics: mockSendAnalytics,
+  it('should emit onSuccess when setLifecycleStatus is called with success', async () => {
+    const onSuccessMock = vi.fn();
+    renderWithProviders({
+      Component: TestSwapComponent,
+      onSuccess: onSuccessMock,
     });
-
-    const { result } = renderHook(() => useBuyContext(), { wrapper });
-
-    await act(async () => {
-      result.current.updateLifecycleStatus({
-        statusName: 'transactionApproved',
-        statusData: {
-          transactionHash: '0x123',
-          transactionType: 'ERC20',
-        },
-      });
-
-      result.current.updateLifecycleStatus({
-        statusName: 'success',
-        statusData: {
-          transactionReceipt: mockTransactionReceipt,
-        },
-      } as unknown as LifecycleStatus);
-    });
-
-    expect(mockSendAnalytics).toHaveBeenCalledWith(BuyEvent.BuySuccess, {
-      address: '0x123',
-      amount: 0,
-      from: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
-      paymaster: false,
-      to: '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed',
-      transactionHash: '0x123',
-    });
+    const button = screen.getByText('setLifecycleStatus.success');
+    fireEvent.click(button);
+    expect(onSuccessMock).toHaveBeenCalled();
   });
 
   it('should reset status to init when setLifecycleStatus is called with success', async () => {
@@ -735,7 +711,7 @@ describe('BuyProvider', () => {
           handleAmountChange('5');
         };
         initializeSwap();
-      }, [handleAmountChange]);
+      }, []);
       return null;
     };
     await act(async () => {
@@ -780,7 +756,7 @@ describe('BuyProvider', () => {
           handleAmountChange('100');
         };
         initializeSwap();
-      }, [handleAmountChange]);
+      }, []);
       return null;
     };
     await act(async () => {
@@ -992,6 +968,41 @@ describe('BuyProvider', () => {
         to: mockToDegen,
         fromETH: { ...mockFromEth, amount: '50' },
         fromUSDC: mockFromUsdc,
+      });
+    });
+
+    it('should track BuySuccess event on successful swap', async () => {
+      const mockSendAnalytics = vi.fn();
+      (useAnalytics as Mock).mockReturnValue({
+        sendAnalytics: mockSendAnalytics,
+      });
+
+      const { result } = renderHook(() => useBuyContext(), { wrapper });
+
+      await act(async () => {
+        result.current.updateLifecycleStatus({
+          statusName: 'transactionApproved',
+          statusData: {
+            transactionHash: '0x123',
+            transactionType: 'ERC20',
+          },
+        });
+
+        result.current.updateLifecycleStatus({
+          statusName: 'success',
+          statusData: {
+            transactionReceipt: mockTransactionReceipt,
+          },
+        } as unknown as LifecycleStatus);
+      });
+
+      expect(mockSendAnalytics).toHaveBeenCalledWith(BuyEvent.BuySuccess, {
+        address: '0x123',
+        amount: 0,
+        from: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
+        paymaster: false,
+        to: '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed',
+        transactionHash: '0x123',
       });
     });
 
