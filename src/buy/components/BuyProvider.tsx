@@ -187,7 +187,7 @@ export function BuyProvider({
     onStatus,
     onSuccess,
     lifecycleStatus,
-    lifecycleStatus.statusData, // Keep statusData, so that the effect runs when it changes	    lifecycleStatus.statusData,
+    lifecycleStatus.statusData, // Keep statusData, so that the effect runs when it changes
     lifecycleStatus.statusName, // Keep statusName, so that the effect runs when it changes
     from,
     to,
