@@ -966,7 +966,7 @@ describe('BuyProvider', () => {
       (useBuyTokens as Mock).mockReturnValue({
         from: mockFromDai,
         to: mockToDegen,
-        fromETH: { ...mockFromEth, amount: '50' },
+        fromETH: mockFromEth,
         fromUSDC: mockFromUsdc,
       });
     });
@@ -1057,6 +1057,75 @@ describe('BuyProvider', () => {
 
     it('should track BuyFailure event when quote fails', async () => {
       const mockError = new Error('Quote error');
+      vi.mocked(getBuyQuote).mockRejectedValueOnce(mockError);
+
+      const { result } = renderHook(() => useBuyContext(), { wrapper });
+
+      await act(async () => {
+        result.current.handleAmountChange('10');
+      });
+
+      expect(mockSendAnalytics).toHaveBeenCalledWith(BuyEvent.BuyFailure, {
+        error: mockError.message,
+        metadata: { amount: '10' },
+      });
+    });
+
+    it('should track BuySuccess event with empty values when fields are undefined', async () => {
+      // Mock tokens as undefined
+      (useBuyTokens as Mock).mockReturnValue({
+        from: { ...mockFromDai, token: undefined },
+        to: { ...mockToDegen, token: undefined },
+        fromETH: { ...mockFromEth, token: undefined },
+        fromUSDC: { ...mockFromUsdc, token: undefined },
+      });
+
+      const { result } = renderHook(() => useBuyContext(), { wrapper });
+
+      await act(async () => {
+        result.current.updateLifecycleStatus({
+          statusName: 'success',
+          statusData: {
+            transactionReceipt: {
+              ...mockTransactionReceipt,
+              transactionHash: undefined,
+            },
+          },
+        } as unknown as LifecycleStatus);
+      });
+
+      expect(mockSendAnalytics).toHaveBeenCalledWith(BuyEvent.BuySuccess, {
+        address: '0x123',
+        amount: 0,
+        from: '',
+        paymaster: false,
+        to: '',
+        transactionHash: '',
+      });
+    });
+
+    it('should track BuyInitiated event with empty token when token is undefined', async () => {
+      (useBuyTokens as Mock).mockReturnValue({
+        from: mockFromDai,
+        to: { ...mockToDegen, token: undefined },
+        fromETH: mockFromEth,
+        fromUSDC: mockFromUsdc,
+      });
+
+      const { result } = renderHook(() => useBuyContext(), { wrapper });
+
+      await act(async () => {
+        result.current.handleAmountChange('10');
+      });
+
+      expect(mockSendAnalytics).toHaveBeenCalledWith(BuyEvent.BuyInitiated, {
+        amount: 10,
+        token: '',
+      });
+    });
+
+    it('should track BuyFailure event with empty metadata when not provided', async () => {
+      const mockError = new Error('Test error');
       vi.mocked(getBuyQuote).mockRejectedValueOnce(mockError);
 
       const { result } = renderHook(() => useBuyContext(), { wrapper });

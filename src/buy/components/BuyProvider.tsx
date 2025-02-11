@@ -258,10 +258,12 @@ export function BuyProvider({
   ]);
 
   const handleAmountChange = useCallback(
-    async (
-      amount: string,
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO Refactor this component
-    ) => {
+    async (amount: string) => {
+      // Track analytics first, before any early returns
+      if (amount !== '' && amount !== '.' && Number.parseFloat(amount) !== 0) {
+        handleAnalyticsInitiated(Number(amount), to?.token?.symbol || '');
+      }
+
       if (
         to.token === undefined ||
         fromETH.token === undefined ||
@@ -313,8 +315,6 @@ export function BuyProvider({
       });
 
       try {
-        handleAnalyticsInitiated(Number(amount), to?.token?.symbol || '');
-
         const maxSlippage = lifecycleStatus.statusData.maxSlippage;
 
         const {
