@@ -590,6 +590,20 @@ describe('TransactionProvider', () => {
     restore();
   });
 
+  it('should throw an error when used outside of TransactionProvider', () => {
+    const TestComponent = () => {
+      useTransactionContext();
+      return null;
+    };
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {}); // Suppress error logging
+    expect(() => render(<TestComponent />)).toThrow(
+      'useTransactionContext must be used within a Transaction component',
+    );
+    consoleError.mockRestore();
+  });
+
   it('should throw an error when both contracts and calls are provided', async () => {
     const restore = silenceError();
     expect(() => {
@@ -663,27 +677,12 @@ describe('TransactionProvider', () => {
           data: '0x' as `0x${string}`,
           functionName: 'test',
         },
-        {
-          to: '0x2234567890123456789012345678901234567890' as `0x${string}`,
-          data: '0x' as `0x${string}`,
-          functionName: 'test2',
-        },
       ];
 
       (useAccount as ReturnType<typeof vi.fn>).mockReturnValue({
         address: '0xUserAddress',
         chainId: 1,
       });
-
-      const switchChainAsyncMock = vi.fn().mockResolvedValue(undefined);
-      (useSwitchChain as ReturnType<typeof vi.fn>).mockReturnValue({
-        switchChainAsync: switchChainAsyncMock,
-      });
-
-      const sendWalletTransactionsMock = vi.fn().mockResolvedValue(undefined);
-      (useSendWalletTransactions as ReturnType<typeof vi.fn>).mockReturnValue(
-        sendWalletTransactionsMock,
-      );
 
       render(
         <TransactionProvider chainId={base.id} calls={mockTransactions}>
@@ -699,30 +698,12 @@ describe('TransactionProvider', () => {
           TransactionEvent.TransactionInitiated,
           {
             address: '0xUserAddress',
-            contracts: [
-              {
-                contractAddress: '0x1234567890123456789012345678901234567890',
-                function: 'test',
-              },
-              {
-                contractAddress: '0x2234567890123456789012345678901234567890',
-                function: 'test2',
-              },
-            ],
           },
         );
       });
     });
 
     it('tracks transaction success', async () => {
-      const mockTransactions = [
-        {
-          to: '0x1234567890123456789012345678901234567890' as `0x${string}`,
-          data: '0x' as `0x${string}`,
-          functionName: 'test',
-        },
-      ];
-
       (useAccount as ReturnType<typeof vi.fn>).mockReturnValue({
         address: '0xUserAddress',
         chainId: 1,
@@ -742,11 +723,7 @@ describe('TransactionProvider', () => {
       });
 
       render(
-        <TransactionProvider
-          chainId={base.id}
-          calls={mockTransactions}
-          isSponsored={true}
-        >
+        <TransactionProvider chainId={base.id} calls={[]} isSponsored={true}>
           <TestComponent />
         </TransactionProvider>,
       );
@@ -760,12 +737,6 @@ describe('TransactionProvider', () => {
           {
             paymaster: true,
             address: '0xUserAddress',
-            contracts: [
-              {
-                contractAddress: '0x1234567890123456789012345678901234567890',
-                function: 'test',
-              },
-            ],
             transactionHash: '0xSuccessHash',
           },
         );
@@ -773,14 +744,6 @@ describe('TransactionProvider', () => {
     });
 
     it('tracks transaction failure', async () => {
-      const mockTransactions = [
-        {
-          to: '0x1234567890123456789012345678901234567890' as `0x${string}`,
-          data: '0x' as `0x${string}`,
-          functionName: 'test',
-        },
-      ];
-
       (
         useWaitForTransactionReceipt as ReturnType<typeof vi.fn>
       ).mockReturnValue({
@@ -791,7 +754,7 @@ describe('TransactionProvider', () => {
       });
 
       render(
-        <TransactionProvider chainId={base.id} calls={mockTransactions}>
+        <TransactionProvider chainId={base.id} calls={[]}>
           <TestComponent />
         </TransactionProvider>,
       );
@@ -804,12 +767,6 @@ describe('TransactionProvider', () => {
           TransactionEvent.TransactionFailure,
           {
             error: 'Transaction failed',
-            contracts: [
-              {
-                contractAddress: '0x1234567890123456789012345678901234567890',
-                function: 'test',
-              },
-            ],
             metadata: {
               code: '',
             },
@@ -819,14 +776,6 @@ describe('TransactionProvider', () => {
     });
 
     it('does not track analytics for user rejected transactions', async () => {
-      const mockTransactions = [
-        {
-          to: '0x1234567890123456789012345678901234567890' as `0x${string}`,
-          data: '0x' as `0x${string}`,
-          functionName: 'test',
-        },
-      ];
-
       const sendWalletTransactionsMock = vi.fn().mockRejectedValue({
         cause: { name: 'UserRejectedRequestError' },
       });
@@ -835,7 +784,7 @@ describe('TransactionProvider', () => {
       );
 
       render(
-        <TransactionProvider chainId={base.id} calls={mockTransactions}>
+        <TransactionProvider chainId={base.id} calls={[]}>
           <TestComponent />
         </TransactionProvider>,
       );
@@ -844,7 +793,7 @@ describe('TransactionProvider', () => {
       fireEvent.click(button);
 
       await waitFor(() => {
-        expect(mockSendAnalytics).toHaveBeenCalledTimes(1);
+        expect(mockSendAnalytics).toHaveBeenCalledTimes(1); // Only initiation, no failure
         expect(mockSendAnalytics).not.toHaveBeenCalledWith(
           TransactionEvent.TransactionFailure,
           expect.any(Object),
@@ -855,16 +804,6 @@ describe('TransactionProvider', () => {
     it('tracks transaction failure when building transactions fails', async () => {
       const mockError = new Error('Failed to build transaction');
       const transactions = () => Promise.reject(mockError);
-
-      const switchChainAsyncMock = vi.fn().mockResolvedValue(undefined);
-      (useSwitchChain as ReturnType<typeof vi.fn>).mockReturnValue({
-        switchChainAsync: switchChainAsyncMock,
-      });
-
-      const sendWalletTransactionsMock = vi.fn().mockResolvedValue(undefined);
-      (useSendWalletTransactions as ReturnType<typeof vi.fn>).mockReturnValue(
-        sendWalletTransactionsMock,
-      );
 
       render(
         <TransactionProvider chainId={base.id} calls={transactions}>
@@ -880,8 +819,7 @@ describe('TransactionProvider', () => {
           1,
           TransactionEvent.TransactionInitiated,
           {
-            address: '',
-            contracts: [],
+            address: undefined,
           },
         );
 
@@ -890,7 +828,6 @@ describe('TransactionProvider', () => {
           TransactionEvent.TransactionFailure,
           {
             error: 'Failed to build transaction',
-            contracts: [],
             metadata: {
               code: '',
             },
@@ -899,10 +836,10 @@ describe('TransactionProvider', () => {
       });
 
       expect(screen.getByTestId('context-value-errorCode').textContent).toBe(
-        'TmTPc04',
+        'TmTPc03',
       );
       expect(screen.getByTestId('context-value-errorMessage').textContent).toBe(
-        'Error building transactions',
+        'Something went wrong. Please try again.',
       );
     });
   });

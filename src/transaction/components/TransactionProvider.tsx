@@ -165,36 +165,24 @@ export function TransactionProvider({
   const handleAnalyticsInitiated = useCallback(() => {
     const transactionData: TransactionEventData[TransactionEvent.TransactionInitiated] =
       {
-        address: account.address ?? '',
-        contracts:
-          (Array.isArray(transactions) ? transactions : []).map((tx) => ({
-            contractAddress: 'to' in tx ? (tx.to as string) : '',
-            function:
-              'functionName' in tx ? tx.functionName || 'unknown' : 'unknown',
-          })) || [],
+        address: account.address,
       };
 
     sendAnalytics(TransactionEvent.TransactionInitiated, transactionData);
-  }, [account.address, sendAnalytics, transactions]);
+  }, [account.address, sendAnalytics]);
 
   const handleAnalyticsSuccess = useCallback(
     (transactionHash: string) => {
       const transactionData: TransactionEventData[TransactionEvent.TransactionSuccess] =
         {
           paymaster: Boolean(isSponsored && paymaster),
-          address: account.address ?? '',
-          contracts:
-            (Array.isArray(transactions) ? transactions : []).map((tx) => ({
-              contractAddress: 'to' in tx ? (tx.to as string) : '',
-              function:
-                'functionName' in tx ? tx.functionName || 'unknown' : 'unknown',
-            })) || [],
+          address: account.address,
           transactionHash,
         };
 
       sendAnalytics(TransactionEvent.TransactionSuccess, transactionData);
     },
-    [account.address, isSponsored, paymaster, sendAnalytics, transactions],
+    [account.address, isSponsored, paymaster, sendAnalytics],
   );
 
   const handleAnalyticsError = useCallback(
@@ -202,12 +190,6 @@ export function TransactionProvider({
       const transactionData: TransactionEventData[TransactionEvent.TransactionFailure] =
         {
           error: error.message,
-          contracts:
-            (Array.isArray(transactions) ? transactions : []).map((tx) => ({
-              contractAddress: 'to' in tx ? (tx.to as string) : '',
-              function:
-                'functionName' in tx ? tx.functionName || 'unknown' : 'unknown',
-            })) || [],
           metadata: {
             code: errorCode,
           },
@@ -215,7 +197,7 @@ export function TransactionProvider({
 
       sendAnalytics(TransactionEvent.TransactionFailure, transactionData);
     },
-    [errorCode, sendAnalytics, transactions],
+    [errorCode, sendAnalytics],
   );
 
   // Component lifecycle emitters
