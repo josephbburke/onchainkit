@@ -133,6 +133,11 @@ export function SwapProvider({
     lifecycleStatus,
     lifecycleStatus.statusData, // Keep statusData, so that the effect runs when it changes
     lifecycleStatus.statusName, // Keep statusName, so that the effect runs when it changes
+    sendAnalytics,
+    paymaster,
+    from.amount,
+    from.token?.symbol,
+    to.token?.symbol,
   ]);
 
   useEffect(() => {
@@ -316,7 +321,14 @@ export function SwapProvider({
         destination.setLoading(false);
       }
     },
-    [from, to, lifecycleStatus, updateLifecycleStatus, useAggregator],
+    [
+      from,
+      to,
+      lifecycleStatus,
+      updateLifecycleStatus,
+      useAggregator,
+      sendAnalytics,
+    ],
   );
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO Refactor this component
