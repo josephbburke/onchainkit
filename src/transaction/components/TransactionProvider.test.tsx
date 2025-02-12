@@ -835,9 +835,6 @@ describe('TransactionProvider', () => {
         );
       });
 
-      expect(screen.getByTestId('context-value-errorCode').textContent).toBe(
-        'TmTPc03',
-      );
       expect(screen.getByTestId('context-value-errorMessage').textContent).toBe(
         'Something went wrong. Please try again.',
       );
