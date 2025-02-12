@@ -14,7 +14,7 @@ import { useSendCalls } from 'wagmi/experimental';
 import { buildSwapTransaction } from '../../api/buildSwapTransaction';
 import { useAnalytics } from '../../core/analytics/hooks/useAnalytics';
 import { BuyEvent } from '../../core/analytics/types';
-import type { BuyOption } from '../../core/analytics/types';
+import type { AnalyticsEventData, BuyOption } from '../../core/analytics/types';
 import { useCapabilitiesSafe } from '../../internal/hooks/useCapabilitiesSafe';
 import { useValue } from '../../internal/hooks/useValue';
 import { FALLBACK_DEFAULT_MAX_SLIPPAGE } from '../../swap/constants';
@@ -59,10 +59,8 @@ export function BuyProvider({
   toToken,
   fromToken,
 }: BuyProviderReact) {
-  const {
-    config: { paymaster } = { paymaster: undefined },
-    projectId,
-  } = useOnchainKit();
+  const { config: { paymaster } = { paymaster: undefined }, projectId } =
+    useOnchainKit();
   const { address, chainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
   // Feature flags
@@ -116,19 +114,12 @@ export function BuyProvider({
 
   const handleAnalyticsInitiated = useCallback(
     (amount: number, tokenSymbol: string) => {
-      sendAnalytics(BuyEvent.BuyInitiated, {
+      const buyData: AnalyticsEventData[BuyEvent.BuyInitiated] = {
         amount,
         token: tokenSymbol,
-      });
-    },
-    [sendAnalytics],
-  );
+      };
 
-  const handleAnalyticsOptionSelected = useCallback(
-    (option: BuyOption) => {
-      sendAnalytics(BuyEvent.BuyOptionSelected, {
-        option,
-      });
+      sendAnalytics(BuyEvent.BuyInitiated, buyData);
     },
     [sendAnalytics],
   );
@@ -142,17 +133,28 @@ export function BuyProvider({
       to: string;
       transactionHash: string;
     }) => {
-      sendAnalytics(BuyEvent.BuySuccess, params);
+      const buyData: AnalyticsEventData[BuyEvent.BuySuccess] = {
+        address: params.address,
+        amount: params.amount,
+        from: params.from,
+        paymaster: params.paymaster,
+        to: params.to,
+        transactionHash: params.transactionHash,
+      };
+
+      sendAnalytics(BuyEvent.BuySuccess, buyData);
     },
     [sendAnalytics],
   );
 
   const handleAnalyticsFailure = useCallback(
     (error: string, metadata: Record<string, unknown>) => {
-      sendAnalytics(BuyEvent.BuyFailure, {
+      const buyData: AnalyticsEventData[BuyEvent.BuyFailure] = {
         error,
         metadata,
-      });
+      };
+
+      sendAnalytics(BuyEvent.BuyFailure, buyData);
     },
     [sendAnalytics],
   );
@@ -165,9 +167,9 @@ export function BuyProvider({
     // Success
     if (lifecycleStatus.statusName === 'success') {
       onSuccess?.(lifecycleStatus?.statusData.transactionReceipt);
-      setTransactionHash(
-        lifecycleStatus.statusData.transactionReceipt?.transactionHash,
-      );
+      const txHash =
+        lifecycleStatus.statusData.transactionReceipt?.transactionHash;
+      setTransactionHash(txHash);
       setHasHandledSuccess(true);
 
       handleAnalyticsSuccess({
@@ -176,8 +178,7 @@ export function BuyProvider({
         from: from?.token?.address || '',
         paymaster: !!paymaster,
         to: to?.token?.address || '',
-        transactionHash:
-          lifecycleStatus.statusData.transactionReceipt?.transactionHash || '',
+        transactionHash: txHash || '',
       });
     }
     // Emit Status
@@ -423,8 +424,6 @@ export function BuyProvider({
         return;
       }
 
-      handleAnalyticsOptionSelected(from.token.symbol as BuyOption);
-
       try {
         const maxSlippage = lifecycleStatus.statusData.maxSlippage;
         const response = await buildSwapTransaction(
@@ -497,7 +496,6 @@ export function BuyProvider({
       updateLifecycleStatus,
       useAggregator,
       walletCapabilities,
-      handleAnalyticsOptionSelected,
       handleAnalyticsFailure,
     ],
   );

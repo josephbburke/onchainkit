@@ -11,16 +11,31 @@ import { isApplePaySupported } from '../utils/isApplePaySupported';
 import { BuyOnrampItem } from './BuyOnrampItem';
 import { useBuyContext } from './BuyProvider';
 import { BuyTokenItem } from './BuyTokenItem';
+import { useAnalytics } from '@/core/analytics/hooks/useAnalytics';
+import { BuyEvent, BuyOption } from '@/core/analytics/types';
 
 export function BuyDropdown() {
   const { projectId } = useOnchainKit();
   const { to, fromETH, fromUSDC, from, startPopupMonitor, setIsDropdownOpen } =
     useBuyContext();
   const { address } = useAccount();
+  const { sendAnalytics } = useAnalytics();
+
+  const handleAnalyticsOptionSelected = useCallback(
+    (paymentMethodId: string) => {
+      const buyData = {
+        option: paymentMethodId as BuyOption,
+      };
+      sendAnalytics(BuyEvent.BuyOptionSelected, buyData);
+    },
+    [sendAnalytics]
+  );
 
   const handleOnrampClick = useCallback(
     (paymentMethodId: string) => {
       return () => {
+        handleAnalyticsOptionSelected(paymentMethodId);
+
         const assetSymbol = to?.token?.symbol;
         let fundAmount = to?.amount;
         // funding url requires a leading zero if the amount is less than 1
@@ -43,7 +58,7 @@ export function BuyDropdown() {
         }
       };
     },
-    [address, to, projectId, startPopupMonitor],
+    [address, to, projectId, startPopupMonitor, handleAnalyticsOptionSelected]
   );
 
   const formattedAmountUSD = useMemo(() => {
