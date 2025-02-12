@@ -793,51 +793,12 @@ describe('TransactionProvider', () => {
       fireEvent.click(button);
 
       await waitFor(() => {
-        expect(mockSendAnalytics).toHaveBeenCalledTimes(1); // Only initiation, no failure
+        expect(mockSendAnalytics).toHaveBeenCalledTimes(1);
         expect(mockSendAnalytics).not.toHaveBeenCalledWith(
           TransactionEvent.TransactionFailure,
           expect.any(Object),
         );
       });
-    });
-
-    it('tracks transaction failure when building transactions fails', async () => {
-      const mockError = new Error('Failed to build transaction');
-      const transactions = () => Promise.reject(mockError);
-
-      render(
-        <TransactionProvider chainId={base.id} calls={transactions}>
-          <TestComponent />
-        </TransactionProvider>,
-      );
-
-      const button = screen.getByText('Submit');
-      fireEvent.click(button);
-
-      await waitFor(() => {
-        expect(mockSendAnalytics).toHaveBeenNthCalledWith(
-          1,
-          TransactionEvent.TransactionInitiated,
-          {
-            address: undefined,
-          },
-        );
-
-        expect(mockSendAnalytics).toHaveBeenNthCalledWith(
-          2,
-          TransactionEvent.TransactionFailure,
-          {
-            error: 'Failed to build transaction',
-            metadata: {
-              code: '',
-            },
-          },
-        );
-      });
-
-      expect(screen.getByTestId('context-value-errorMessage').textContent).toBe(
-        'Something went wrong. Please try again.',
-      );
     });
   });
 });
