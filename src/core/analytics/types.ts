@@ -182,8 +182,6 @@ export type SwapEventData = {
   };
   [SwapEvent.SwapInitiated]: CommonAnalyticsData & {
     amount: number;
-    from: string;
-    to: string;
   };
 };
 

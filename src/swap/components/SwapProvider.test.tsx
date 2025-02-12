@@ -68,7 +68,9 @@ vi.mock('wagmi', async (importOriginal) => {
     useAccount: vi.fn(),
     useChainId: vi.fn(),
     useSwitchChain: vi.fn(),
-    useSendTransaction: vi.fn(),
+    useSendTransaction: vi.fn(() => ({
+      sendTransactionAsync: vi.fn(),
+    })),
   };
 });
 
@@ -860,6 +862,38 @@ describe('SwapProvider', () => {
       expect(result.current.statusData.maxSlippage).toBe(3);
     }
   });
+
+  it('should handle errors in handleSubmit', async () => {
+    const mockError = new Error('Test error');
+    vi.mocked(buildSwapTransaction).mockRejectedValueOnce(mockError);
+    renderWithProviders({ Component: TestSwapComponent });
+    fireEvent.click(screen.getByText('Swap'));
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('context-value-lifecycleStatus-statusName')
+          .textContent,
+      ).toBe('error');
+      expect(
+        screen.getByTestId('context-value-lifecycleStatus-statusData-code')
+          .textContent,
+      ).toBe('TmSPc02');
+    });
+  });
+
+  it('should set transactionHash on success', async () => {
+    const { result } = renderHook(() => useSwapContext(), { wrapper });
+
+    await act(async () => {
+      result.current.updateLifecycleStatus({
+        statusName: 'success',
+        statusData: {
+          transactionReceipt: { transactionHash: '0x123' },
+        },
+      } as unknown as LifecycleStatus);
+    });
+
+    expect(result.current.transactionHash).toBe('0x123');
+  });
 });
 
 describe('SwapProvider Analytics', () => {
@@ -892,6 +926,14 @@ describe('SwapProvider Analytics', () => {
 
   it('should track swap success', async () => {
     const { result } = renderHook(() => useSwapContext(), { wrapper });
+
+    // Set up initial context values
+    act(() => {
+      result.current.from.setToken?.(ETH_TOKEN);
+      result.current.to.setToken?.(DEGEN_TOKEN);
+      result.current.from.setAmount?.('100');
+    });
+
     await act(async () => {
       result.current.updateLifecycleStatus({
         statusName: 'success',
@@ -905,6 +947,10 @@ describe('SwapProvider Analytics', () => {
       SwapEvent.SwapSuccess,
       expect.objectContaining({
         transactionHash: '0x123',
+        paymaster: false,
+        amount: 100,
+        from: 'ETH',
+        to: 'DEGEN',
       }),
     );
   });
@@ -947,8 +993,6 @@ describe('SwapProvider Analytics', () => {
 
     expect(sendAnalytics).toHaveBeenCalledWith(SwapEvent.SwapInitiated, {
       amount: 10,
-      from: 'ETH',
-      to: 'DEGEN',
     });
   });
 });

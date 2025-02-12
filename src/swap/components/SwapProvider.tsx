@@ -111,14 +111,14 @@ export function SwapProvider({
     if (lifecycleStatus.statusName === 'success') {
       onSuccess?.(lifecycleStatus.statusData.transactionReceipt);
       setTransactionHash(
-        lifecycleStatus.statusData?.transactionReceipt.transactionHash ?? '',
+        lifecycleStatus.statusData?.transactionReceipt.transactionHash,
       );
       setHasHandledSuccess(true);
       setIsToastVisible(true);
       sendAnalytics(SwapEvent.SwapSuccess, {
         paymaster: !!paymaster,
         transactionHash:
-          lifecycleStatus.statusData.transactionReceipt?.transactionHash ?? '',
+          lifecycleStatus.statusData.transactionReceipt?.transactionHash,
         amount: Number(from.amount),
         from: from.token?.symbol || '',
         to: to.token?.symbol || '',
@@ -131,11 +131,8 @@ export function SwapProvider({
     onStatus,
     onSuccess,
     lifecycleStatus,
-    lifecycleStatus.statusData,
-    lifecycleStatus.statusName,
-    from.amount,
-    from.token,
-    to.token,
+    lifecycleStatus.statusData, // Keep statusData, so that the effect runs when it changes
+    lifecycleStatus.statusName, // Keep statusName, so that the effect runs when it changes
   ]);
 
   useEffect(() => {
@@ -304,8 +301,6 @@ export function SwapProvider({
         });
         sendAnalytics(SwapEvent.SwapInitiated, {
           amount: Number(amount),
-          from: from.token?.symbol || '',
-          to: to.token?.symbol || '',
         });
       } catch (err) {
         updateLifecycleStatus({
