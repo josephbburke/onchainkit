@@ -1,5 +1,3 @@
-import { useAnalytics } from '@/core/analytics/hooks/useAnalytics';
-import { SwapEvent } from '@/core/analytics/types';
 import { RequestContext } from '@/core/network/constants';
 import {
   createContext,
@@ -14,6 +12,8 @@ import { useSwitchChain } from 'wagmi';
 import { useSendCalls } from 'wagmi/experimental';
 import { buildSwapTransaction } from '../../api/buildSwapTransaction';
 import { getSwapQuote } from '../../api/getSwapQuote';
+import { useAnalytics } from '../../core/analytics/hooks/useAnalytics';
+import { SwapEvent } from '../../core/analytics/types';
 import { useCapabilitiesSafe } from '../../internal/hooks/useCapabilitiesSafe';
 import { useLifecycleStatus } from '../../internal/hooks/useLifecycleStatus';
 import { useValue } from '../../internal/hooks/useValue';
@@ -66,7 +66,6 @@ export function SwapProvider({
   const { useAggregator } = experimental;
   // Core Hooks
   const accountConfig = useConfig();
-  const { sendAnalytics } = useAnalytics();
 
   const walletCapabilities = useCapabilitiesSafe({
     chainId: base.id,
@@ -96,45 +95,34 @@ export function SwapProvider({
     updateLifecycleStatus,
   });
 
-  const handleAnalyticsSuccess = useCallback(
-    (data: {
-      address: string;
-      amount: number;
-      from: string;
-      to: string;
-      transactionHash: string;
-      paymaster: boolean;
-    }) => {
-      sendAnalytics(SwapEvent.SwapSuccess, data);
-    },
-    [sendAnalytics],
-  );
+  const { sendAnalytics } = useAnalytics();
 
   // Component lifecycle emitters
   useEffect(() => {
     // Error
     if (lifecycleStatus.statusName === 'error') {
       onError?.(lifecycleStatus.statusData);
+      sendAnalytics(SwapEvent.SwapFailure, {
+        error: lifecycleStatus.statusData.error,
+        metadata: lifecycleStatus.statusData,
+      });
     }
     // Success
     if (lifecycleStatus.statusName === 'success') {
       onSuccess?.(lifecycleStatus.statusData.transactionReceipt);
       setTransactionHash(
-        lifecycleStatus.statusData?.transactionReceipt.transactionHash,
+        lifecycleStatus.statusData?.transactionReceipt.transactionHash ?? '',
       );
-
-      handleAnalyticsSuccess({
-        address: address ?? '',
-        amount: Number(from.amount),
-        from: from.token?.symbol ?? '',
-        to: to.token?.symbol ?? '',
-        transactionHash:
-          lifecycleStatus.statusData.transactionReceipt.transactionHash,
-        paymaster: Boolean(isSponsored),
-      });
-
       setHasHandledSuccess(true);
       setIsToastVisible(true);
+      sendAnalytics(SwapEvent.SwapSuccess, {
+        paymaster: !!paymaster,
+        transactionHash:
+          lifecycleStatus.statusData.transactionReceipt?.transactionHash ?? '',
+        amount: Number(from.amount),
+        from: from.token?.symbol || '',
+        to: to.token?.symbol || '',
+      });
     }
     // Emit Status
     onStatus?.(lifecycleStatus);
@@ -143,14 +131,11 @@ export function SwapProvider({
     onStatus,
     onSuccess,
     lifecycleStatus,
-    address,
-    from.amount,
-    from.token?.symbol,
-    to.token?.symbol,
-    isSponsored,
-    handleAnalyticsSuccess,
     lifecycleStatus.statusData,
     lifecycleStatus.statusName,
+    from.amount,
+    from.token,
+    to.token,
   ]);
 
   useEffect(() => {
@@ -317,6 +302,11 @@ export function SwapProvider({
             isMissingRequiredField: !formattedAmount,
           },
         });
+        sendAnalytics(SwapEvent.SwapInitiated, {
+          amount: Number(amount),
+          from: from.token?.symbol || '',
+          to: to.token?.symbol || '',
+        });
       } catch (err) {
         updateLifecycleStatus({
           statusName: 'error',
@@ -334,55 +324,13 @@ export function SwapProvider({
     [from, to, lifecycleStatus, updateLifecycleStatus, useAggregator],
   );
 
-  const handleAnalyticsInitiated = useCallback(
-    (fromToken: Token, toToken: Token, amount: number) => {
-      sendAnalytics(SwapEvent.SwapInitiated, {
-        from: fromToken.symbol,
-        to: toToken.symbol,
-        amount,
-      });
-    },
-    [sendAnalytics],
-  );
-
-  const handleAnalyticsError = useCallback(
-    (error: Error, metadata?: Record<string, unknown>) => {
-      sendAnalytics(SwapEvent.SwapFailure, {
-        error: error.message,
-        metadata,
-      });
-    },
-    [sendAnalytics],
-  );
-
-  const handleAnalyticsSlippageChange = useCallback(
-    (slippage: number, previousSlippage: number) => {
-      sendAnalytics(SwapEvent.SlippageChanged, {
-        slippage,
-        previousSlippage,
-      });
-    },
-    [sendAnalytics],
-  );
-
-  const handleAnalyticsTokenSelected = useCallback(
-    (token: string) => {
-      sendAnalytics(SwapEvent.TokenSelected, {
-        token,
-      });
-    },
-    [sendAnalytics],
-  );
-
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: ignore
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO Refactor this component
   const handleSubmit = useCallback(async () => {
     if (!address || !from.token || !to.token || !from.amount) {
       return;
     }
 
     try {
-      handleAnalyticsInitiated(from.token, to.token, Number(from.amount));
-
       const maxSlippage = lifecycleStatus.statusData.maxSlippage;
       const response = await buildSwapTransaction(
         {
@@ -395,7 +343,6 @@ export function SwapProvider({
         },
         RequestContext.Swap,
       );
-
       if (isSwapError(response)) {
         updateLifecycleStatus({
           statusName: 'error',
@@ -405,10 +352,8 @@ export function SwapProvider({
             message: response.message,
           },
         });
-        handleAnalyticsError(new Error(response.error));
         return;
       }
-
       await processSwapTransaction({
         chainId,
         config: accountConfig,
@@ -434,9 +379,6 @@ export function SwapProvider({
           message: errorMessage,
         },
       });
-      handleAnalyticsError(
-        err instanceof Error ? err : new Error(errorMessage),
-      );
     }
   }, [
     accountConfig,
@@ -454,8 +396,6 @@ export function SwapProvider({
     updateLifecycleStatus,
     useAggregator,
     walletCapabilities,
-    handleAnalyticsInitiated,
-    handleAnalyticsError,
   ]);
 
   const value = useValue({
@@ -472,8 +412,6 @@ export function SwapProvider({
     setIsToastVisible,
     setTransactionHash,
     transactionHash,
-    onSlippageChange: handleAnalyticsSlippageChange,
-    onTokenSelect: handleAnalyticsTokenSelected,
   });
 
   return <SwapContext.Provider value={value}>{children}</SwapContext.Provider>;
