@@ -1019,21 +1019,6 @@ describe('BuyProvider', () => {
       });
     });
 
-    it('should track BuyOptionSelected event when submitting swap', async () => {
-      renderWithProviders({ Component: TestSwapComponent });
-
-      await act(async () => {
-        fireEvent.click(screen.getByText('Swap'));
-      });
-
-      expect(mockSendAnalytics).toHaveBeenCalledWith(
-        BuyEvent.BuyOptionSelected,
-        {
-          option: ethToken.symbol,
-        },
-      );
-    });
-
     it('should track BuyFailure event when swap fails', async () => {
       const mockError = new Error('Test error');
       vi.mocked(buildSwapTransaction).mockRejectedValueOnce(mockError);

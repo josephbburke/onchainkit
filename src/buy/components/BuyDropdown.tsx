@@ -1,3 +1,5 @@
+import { useAnalytics } from '@/core/analytics/hooks/useAnalytics';
+import { BuyEvent, type BuyOption } from '@/core/analytics/types';
 import { openPopup } from '@/internal/utils/openPopup';
 import { useOnchainKit } from '@/useOnchainKit';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -11,8 +13,6 @@ import { isApplePaySupported } from '../utils/isApplePaySupported';
 import { BuyOnrampItem } from './BuyOnrampItem';
 import { useBuyContext } from './BuyProvider';
 import { BuyTokenItem } from './BuyTokenItem';
-import { useAnalytics } from '@/core/analytics/hooks/useAnalytics';
-import { BuyEvent, BuyOption } from '@/core/analytics/types';
 
 export function BuyDropdown() {
   const { projectId } = useOnchainKit();
@@ -21,20 +21,13 @@ export function BuyDropdown() {
   const { address } = useAccount();
   const { sendAnalytics } = useAnalytics();
 
-  const handleAnalyticsOptionSelected = useCallback(
-    (paymentMethodId: string) => {
-      const buyData = {
-        option: paymentMethodId as BuyOption,
-      };
-      sendAnalytics(BuyEvent.BuyOptionSelected, buyData);
-    },
-    [sendAnalytics]
-  );
-
   const handleOnrampClick = useCallback(
     (paymentMethodId: string) => {
       return () => {
-        handleAnalyticsOptionSelected(paymentMethodId);
+        // Track the buy option selected
+        sendAnalytics(BuyEvent.BuyOptionSelected, {
+          option: paymentMethodId as BuyOption,
+        });
 
         const assetSymbol = to?.token?.symbol;
         let fundAmount = to?.amount;
@@ -58,7 +51,7 @@ export function BuyDropdown() {
         }
       };
     },
-    [address, to, projectId, startPopupMonitor, handleAnalyticsOptionSelected]
+    [address, to, projectId, startPopupMonitor, sendAnalytics],
   );
 
   const formattedAmountUSD = useMemo(() => {

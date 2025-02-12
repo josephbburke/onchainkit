@@ -14,7 +14,7 @@ import { useSendCalls } from 'wagmi/experimental';
 import { buildSwapTransaction } from '../../api/buildSwapTransaction';
 import { useAnalytics } from '../../core/analytics/hooks/useAnalytics';
 import { BuyEvent } from '../../core/analytics/types';
-import type { AnalyticsEventData, BuyOption } from '../../core/analytics/types';
+import type { AnalyticsEventData } from '../../core/analytics/types';
 import { useCapabilitiesSafe } from '../../internal/hooks/useCapabilitiesSafe';
 import { useValue } from '../../internal/hooks/useValue';
 import { FALLBACK_DEFAULT_MAX_SLIPPAGE } from '../../swap/constants';
@@ -59,8 +59,10 @@ export function BuyProvider({
   toToken,
   fromToken,
 }: BuyProviderReact) {
-  const { config: { paymaster } = { paymaster: undefined }, projectId } =
-    useOnchainKit();
+  const {
+    config: { paymaster } = { paymaster: undefined },
+    projectId,
+  } = useOnchainKit();
   const { address, chainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
   // Feature flags
@@ -126,7 +128,7 @@ export function BuyProvider({
 
   const handleAnalyticsSuccess = useCallback(
     (params: {
-      address: string;
+      address?: string;
       amount: number;
       from: string;
       paymaster: boolean;
@@ -173,7 +175,7 @@ export function BuyProvider({
       setHasHandledSuccess(true);
 
       handleAnalyticsSuccess({
-        address: address || '',
+        address,
         amount: Number(from?.amount || 0),
         from: from?.token?.address || '',
         paymaster: !!paymaster,
