@@ -131,6 +131,7 @@ export type FundButtonReact = {
    */
   popupSize?: 'sm' | 'md' | 'lg'; // Size of the popup window if `openIn` is set to `popup`
   rel?: string; // Specifies the relationship between the current document and the linked document
+  requireConnectedWallet?: boolean; //allows toggling of smart wallet required for fund button
   target?: string; // Where to open the target if `openIn` is set to tab
   fiatCurrency?: string; // The currency code of the fiat amount provided in the presetFiatAmount param e.g. USD, CAD, EUR.
   onPopupClose?: () => void; // A callback function that will be called when the popup window is closed

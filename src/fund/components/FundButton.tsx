@@ -27,6 +27,7 @@ export function FundButton({
   openIn = 'popup',
   popupSize = 'md',
   rel,
+  requireConnectedWallet = true,
   target,
   text: buttonText = 'Fund',
   successText: buttonSuccessText = 'Success',
@@ -161,7 +162,7 @@ export function FundButton({
     );
   }
 
-  if (shouldShowConnectWallet) {
+  if (shouldShowConnectWallet && requireConnectedWallet) {
     return <ConnectWallet className={cn('w-full', className)} />;
   }
 
